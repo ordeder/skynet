@@ -80,22 +80,22 @@ skynet_socket_poll() {
 	switch (type) {
 	case SOCKET_EXIT:
 		return 0;
-	case SOCKET_DATA:
+	case SOCKET_DATA://tcp and read data from socket
 		forward_message(SKYNET_SOCKET_TYPE_DATA, false, &result);
 		break;
 	case SOCKET_CLOSE:
 		forward_message(SKYNET_SOCKET_TYPE_CLOSE, false, &result);
 		break;
-	case SOCKET_OPEN:
+	case SOCKET_OPEN://socket connct other server success
 		forward_message(SKYNET_SOCKET_TYPE_CONNECT, true, &result);
 		break;
 	case SOCKET_ERROR:
 		forward_message(SKYNET_SOCKET_TYPE_ERROR, true, &result);
 		break;
-	case SOCKET_ACCEPT:
+	case SOCKET_ACCEPT://new request ocuer in listenfd
 		forward_message(SKYNET_SOCKET_TYPE_ACCEPT, true, &result);
 		break;
-	case SOCKET_UDP:
+	case SOCKET_UDP://udp and read data from socket
 		forward_message(SKYNET_SOCKET_TYPE_UDP, false, &result);
 		break;
 	default:

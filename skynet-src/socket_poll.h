@@ -6,7 +6,7 @@
 typedef int poll_fd;
 
 struct event {
-	void * s;
+	void * s; //lipp: tag for event blong which socket( struct socket)
 	bool read;
 	bool write;
 };

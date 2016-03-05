@@ -18,12 +18,12 @@
 #include <string.h>
 
 struct monitor {
-	int count;
-	struct skynet_monitor ** m;
-	pthread_cond_t cond;
-	pthread_mutex_t mutex;
-	int sleep;
-	int quit;
+	int count;//lipp: total worker
+	struct skynet_monitor ** m;//monitor for each worker
+	pthread_cond_t cond;//condiction para
+	pthread_mutex_t mutex;//mutex for condiction para
+	int sleep; 
+	int quit;//lipp: server quit
 };
 
 struct worker_parm {
@@ -62,7 +62,7 @@ thread_socket(void *p) {
 			CHECK_ABORT
 			continue;
 		}
-		wakeup(m,0);
+		wakeup(m,0); //lipp: sleep == count, then call cond_signal
 	}
 	return NULL;
 }
@@ -107,7 +107,7 @@ thread_timer(void *p) {
 	for (;;) {
 		skynet_updatetime();
 		CHECK_ABORT
-		wakeup(m,m->count-1);
+		wakeup(m,m->count-1); //lipp: m->sleep => 1, call cond_signal(cond)
 		usleep(2500);
 	}
 	// wakeup socket thread
@@ -133,11 +133,11 @@ thread_worker(void *p) {
 		q = skynet_context_message_dispatch(sm, q, weight);
 		if (q == NULL) {
 			if (pthread_mutex_lock(&m->mutex) == 0) {
-				++ m->sleep;
+				++ m->sleep;//lipp: the nunber of sleeping thread
 				// "spurious wakeup" is harmless,
 				// because skynet_context_message_dispatch() can be call at any time.
 				if (!m->quit)
-					pthread_cond_wait(&m->cond, &m->mutex);
+					pthread_cond_wait(&m->cond, &m->mutex);//lipp: wait for cond come
 				-- m->sleep;
 				if (pthread_mutex_unlock(&m->mutex)) {
 					fprintf(stderr, "unlock mutex error");
@@ -183,7 +183,7 @@ start(int thread) {
 		3, 3, 3, 3, 3, 3, 3, 3, };
 	struct worker_parm wp[thread];
 	for (i=0;i<thread;i++) {
-		wp[i].m = m;
+		wp[i].m = m; //lipp: m=monitor, worker_i 's monitor is m->m[i]
 		wp[i].id = i;
 		if (i < sizeof(weight)/sizeof(weight[0])) {
 			wp[i].weight= weight[i];
@@ -193,7 +193,7 @@ start(int thread) {
 		create_thread(&pid[i+3], thread_worker, &wp[i]);
 	}
 
-	for (i=0;i<thread+3;i++) {
+	for (i=0;i<thread+3;i++) {//lipp: wait all the thread go die
 		pthread_join(pid[i], NULL); 
 	}
 

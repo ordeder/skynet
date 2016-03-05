@@ -298,7 +298,7 @@ skynet_context_message_dispatch(struct skynet_monitor *sm, struct message_queue 
 			return skynet_globalmq_pop();
 		} else if (i==0 && weight >= 0) {
 			n = skynet_mq_length(q);
-			n >>= weight;
+			n >>= weight;//lipp: [robin] the higher weight is, the smaller n is. keep some space for other worker's message
 		}
 		int overload = skynet_mq_overload(q);
 		if (overload) {
@@ -318,7 +318,7 @@ skynet_context_message_dispatch(struct skynet_monitor *sm, struct message_queue 
 
 	assert(q == ctx->queue);
 	struct message_queue *nq = skynet_globalmq_pop();
-	if (nq) {
+	if (nq) {//lipp: fair schdule for all worker threads
 		// If global mq is not empty , push q back, and return next queue (nq)
 		// Else (global mq is empty or block, don't push q back, and return q again (for next dispatch)
 		skynet_globalmq_push(q);

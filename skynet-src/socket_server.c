@@ -84,11 +84,11 @@ struct socket_server {
 	int checkctrl;
 	poll_fd event_fd;
 	int alloc_id;
-	int event_n;
-	int event_index;
+	int event_n;//lipp: total event
+	int event_index;//lipp: currently event waiting for deal. 0~index-1 event has been done, index ~ n are pending
 	struct socket_object_interface soi;
-	struct event ev[MAX_EVENT];
-	struct socket slot[MAX_SOCKET];
+	struct event ev[MAX_EVENT];//lipp: event buff, ev[i]->s point to the socket which itself belong to.
+	struct socket slot[MAX_SOCKET];//lipp: socket fd, socket type, sessionid(opaque), protocol, send buffer...
 	char buffer[MAX_INFO];
 	uint8_t udpbuffer[MAX_UDP_PACKAGE];
 	fd_set rfds;
@@ -1207,7 +1207,7 @@ socket_server_poll(struct socket_server *ss, struct socket_message * result, int
 				ss->checkctrl = 0;
 			}
 		}
-		if (ss->event_index == ss->event_n) {
+		if (ss->event_index == ss->event_n) {//lipp: all events are been done, then re epoll and set index = 0
 			ss->event_n = sp_wait(ss->event_fd, ss->ev, MAX_EVENT);
 			ss->checkctrl = 1;
 			if (more) {
@@ -1226,10 +1226,10 @@ socket_server_poll(struct socket_server *ss, struct socket_message * result, int
 			continue;
 		}
 		switch (s->type) {
-		case SOCKET_TYPE_CONNECTING:
-			return report_connect(ss, s, result);
-		case SOCKET_TYPE_LISTEN: {
-			int ok = report_accept(ss, s, result);
+		case SOCKET_TYPE_CONNECTING://local connect other server
+			return report_connect(ss, s, result);		//success:socket_open;    socket_message:socket_type_connected
+		case SOCKET_TYPE_LISTEN: {//listen socket event
+			int ok = report_accept(ss, s, result);		//success:socket_accept;  socket_message:socket_type_paccept
 			if (ok > 0) {
 				return SOCKET_ACCEPT;
 			} if (ok < 0 ) {
@@ -1245,9 +1245,9 @@ socket_server_poll(struct socket_server *ss, struct socket_message * result, int
 			if (e->read) {
 				int type;
 				if (s->protocol == PROTOCOL_TCP) {
-					type = forward_message_tcp(ss, s, result);
+					type = forward_message_tcp(ss, s, result);//success:socket_data
 				} else {
-					type = forward_message_udp(ss, s, result);
+					type = forward_message_udp(ss, s, result);//success:socket_udp
 					if (type == SOCKET_UDP) {
 						// try read again
 						--ss->event_index;
@@ -1264,8 +1264,8 @@ socket_server_poll(struct socket_server *ss, struct socket_message * result, int
 				return type;
 			}
 			if (e->write) {
-				int type = send_buffer(ss, s, result);
-				if (type == -1)
+				int type = send_buffer(ss, s, result);//-1: data send success, nothing return pfun
+				if (type == -1)	
 					break;
 				return type;
 			}
